@@ -1,0 +1,7 @@
+http://inet.cs.fiu.edu/
+http://inet.cs.fiu.edu/temp/page.html
+http://inet.cs.fiu.edu/temp/deny.html
+http://google.com/404
+http://inet.cs.fiu.edu/temp/denied.html
+http://inet.cs.fiu.edu/fiu.jpg
+http://google.com
