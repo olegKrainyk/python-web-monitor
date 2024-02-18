@@ -37,7 +37,7 @@ def analyze_http_response(response):
         print(f'Error analyzing HTTP response: {e}')
         return None
 
-def fetch_url(url):
+def fetch_url(url, redirect):
     protocol, host, path = parse_url(url)
     
     port = 80 if protocol == 'http' else 443
@@ -72,13 +72,13 @@ def fetch_url(url):
     status_code, status_message = analyze_http_response(response)
     
     if status_code is not None:    # print info if present
-        print(f'URL: {url}\nStatus: {status_code} {status_message}')
-    
+        if not redirect: print(f'\nURL: {url}\nStatus: {status_code} {status_message}') 
+        else: print(f'Status: {status_code} {status_message}')
 
     if status_code in [301, 302]:
         redirected_url = get_redirected_url(response)
         print(f'Redirected URL: {redirected_url}')
-        fetch_url(redirected_url)
+        fetch_url(redirected_url, True)
 
     if status_code // 100 == 2:  # 2xx status code
         fetch_referenced_objects(response)
@@ -104,7 +104,7 @@ def main():
         urls = file.read().splitlines()
 
     for url in urls:
-        fetch_url(url)
+        fetch_url(url, False)
 
 if __name__ == "__main__":
     main()
