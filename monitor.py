@@ -37,7 +37,7 @@ def analyze_http_response(response):
         print(f'Error analyzing HTTP response: {e}')
         return None
 
-def fetch_url(url, redirect):
+def fetch_url(url, redirect, referenced):
     protocol, host, path = parse_url(url)
     
     port = 80 if protocol == 'http' else 443
@@ -72,16 +72,22 @@ def fetch_url(url, redirect):
     status_code, status_message = analyze_http_response(response)
     
     if status_code is not None:    # print info if present
-        if not redirect: print(f'\nURL: {url}\nStatus: {status_code} {status_message}') 
-        else: print(f'Status: {status_code} {status_message}')
+        if not redirect: 
+            if not referenced:
+                print(f'\nURL: {url}\nStatus: {status_code} {status_message}') 
+        elif redirect: print(f'Status: {status_code} {status_message}')
+        if referenced: print(f'Referenced URL: {url}\nStatus: {status_code} {status_message}')
 
     if status_code in [301, 302]:
         redirected_url = get_redirected_url(response)
         print(f'Redirected URL: {redirected_url}')
-        fetch_url(redirected_url, True)
+        fetch_url(redirected_url, True, False)
 
     if status_code // 100 == 2:  # 2xx status code
-        fetch_referenced_objects(response)
+        referenced_links = fetch_referenced_objects(response, url)
+        for link in referenced_links:
+            fetch_url(link, False, True)
+        
 
     sock.close()
 
@@ -90,8 +96,39 @@ def get_redirected_url(response):
     location = location_line.split(b': ')[1].decode('utf-8')
     return location
 
-def fetch_referenced_objects(response):
-    pass
+def image_parser(html_content):
+    referenced_images = []
+    parser = HTMLParser()
+
+    def handle_starttag(tag, attrs):
+        nonlocal referenced_images
+        if tag == 'img':
+            src = dict(attrs).get('src')
+            if src:
+                referenced_images.append(src)
+
+    parser.handle_starttag = handle_starttag
+    parser.feed(html_content)
+    return referenced_images
+
+def fetch_referenced_objects(response, base_url):
+    
+    try:
+        html = response.decode('utf-8')[:1000] + '...'
+    except Exception as e:
+        print(f'Error decoding HTML: {e}')
+        html = ''
+    
+    referenced_objects = []
+
+    referenced_images = image_parser(html)
+
+    for referenced_image in referenced_images:
+        full_url = urljoin(base_url, referenced_image)
+        referenced_objects.append(full_url)
+
+    return referenced_objects
+   
 
 def main():
     if len(sys.argv) != 2:
@@ -104,7 +141,7 @@ def main():
         urls = file.read().splitlines()
 
     for url in urls:
-        fetch_url(url, False)
+        fetch_url(url, False, False)
 
 if __name__ == "__main__":
     main()
