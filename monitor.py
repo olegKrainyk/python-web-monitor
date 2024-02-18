@@ -3,6 +3,7 @@ import ssl
 import sys
 from urllib.parse import urlparse, urljoin
 from html.parser import HTMLParser
+import warnings
 
 def parse_url(url):
     parsed_url = urlparse(url)
@@ -47,7 +48,10 @@ def fetch_url(url):
         return
     
     if protocol == 'https':
-        sock = ssl.wrap_socket(sock, ssl_version=ssl.PROTOCOL_TLS)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+            sock = context.wrap_socket(sock, server_hostname=host)
 
     request = construct_http_request(host, path)
 
@@ -67,7 +71,7 @@ def fetch_url(url):
 
     status_code, status_message = analyze_http_response(response)
     
-    if status_code is not None:
+    if status_code is not None:    # print info if present
         print(f'URL: {url}\nStatus: {status_code} {status_message}')
     
 
@@ -76,13 +80,13 @@ def fetch_url(url):
         print(f'Redirected URL: {redirected_url}')
         fetch_url(redirected_url)
 
-    if status_code // 100 == 2:  # Check if status code is 2XX
+    if status_code // 100 == 2:  # 2xx status code
         fetch_referenced_objects(response)
 
     sock.close()
 
 def get_redirected_url(response):
-    location_line = response.split(b'\r\n', 1)[1]
+    location_line = response.split(b'\r\n', 2)[1]
     location = location_line.split(b': ')[1].decode('utf-8')
     return location
 
